@@ -144,3 +144,5 @@ CMakeFiles/3.22.1/CompilerIdC/CMakeCCompilerId.c
 CMakeFiles/3.22.1/CompilerIdC/CMakeCCompilerId.o
 CMakeFiles/3.22.1/CompilerIdCXX/CMakeCXXCompilerId.cpp
 CMakeFiles/3.22.1/CompilerIdCXX/CMakeCXXCompilerId.o
+build/CMakeFiles/stm32f411AS5047DSHOT.dir/Core/Src/dshot.c.obj
+build/CMakeFiles/stm32f411AS5047DSHOT.dir/Core/Src/dshot.c.obj.d

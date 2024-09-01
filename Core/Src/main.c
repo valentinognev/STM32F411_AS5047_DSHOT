@@ -18,7 +18,6 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "usb_device.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -26,12 +25,20 @@
 
 #include "AS5047D.h"
 #include "debug_scope.h"
-#include "usbd_cdc_if.h"
+#include "dshot.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
+#define MOTOR_BIT_0           7
+#define MOTOR_BIT_1           14
+#define MOTOR_BITLENGTH       20
 
+#define ESC_POWER_UP 3000  // wait 3s before arming sequence
+#define TROTTLE_MAX 500      // trotle max
+#define TROTTLE_MIN 48      // trotle min
+
+#define DSHOT_FRAME_SIZE 18
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -48,18 +55,20 @@
 CRC_HandleTypeDef hcrc;
 
 TIM_HandleTypeDef htim1;
-DMA_HandleTypeDef hdma_tim1_up;
+DMA_HandleTypeDef hdma_tim1_ch1;
 
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
+uint16_t my_motor_value[4] = {2345, 0, 0, 0};
+
 uint8_t spiTxFinished = 1;
 uint8_t spiRxFinished = 1;
 
 DebugCommand debugCommand = 0;
 volatile uint8_t timTrig = 0;
 DebugScope_Handle_t debugData =
-	{
+  {
         .sz = DEBUGSCOPESIZE,
         .curCh = 1,
         .i1 = 0,
@@ -98,7 +107,7 @@ static void MX_CRC_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_SPI1_Init(void);
 /* USER CODE BEGIN PFP */
-
+void dshot600(uint32_t *motor, uint16_t value);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -140,7 +149,6 @@ int main(void)
   MX_CRC_Init();
   MX_USART2_UART_Init();
   MX_SPI1_Init();
-  MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
   
    /* Initiaize AS5047D */
@@ -161,6 +169,8 @@ int main(void)
 
   errorFlag = AS5047D_Get_True_Angle_Value(&true_angle);
 
+  dshot_init(DSHOT600);
+
   //ProjectMain();
   /* USER CODE END 2 */
 
@@ -168,17 +178,20 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-  	while (!timTrig) ;
+    // while (!timTrig) ;
 
-	  errorFlag = AS5047D_Get_True_Angle_Value(&spiAngle);
-	  if (errorFlag != 0)
-	  {
-		  errorFlag = AS5047D_Read(AS5047_CS_GPIO_Port, AS5047_CS_Pin, AS5047D_ERRFL, &ERRFL);
-		  errorFlag++;
-	  }
-	  timTrig = 0;
-	  DebugScopeInsertData(&debugData, 1, encoderAngle);
-	  DebugScopeInsertData(&debugData, 2, spiAngle);
+    // errorFlag = AS5047D_Get_True_Angle_Value(&spiAngle);
+    // if (errorFlag != 0)
+    // {
+    //   errorFlag = AS5047D_Read(AS5047_CS_GPIO_Port, AS5047_CS_Pin, AS5047D_ERRFL, &ERRFL);
+    //   errorFlag++;
+    // }
+    // timTrig = 0;
+    // DebugScopeInsertData(&debugData, 1, encoderAngle);
+    // DebugScopeInsertData(&debugData, 2, spiAngle);
+
+    dshot_write(my_motor_value);
+	  HAL_Delay(1);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -207,10 +220,10 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-  RCC_OscInitStruct.PLL.PLLM = 15;
-  RCC_OscInitStruct.PLL.PLLN = 144;
-  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV4;
-  RCC_OscInitStruct.PLL.PLLQ = 5;
+  RCC_OscInitStruct.PLL.PLLM = 12;
+  RCC_OscInitStruct.PLL.PLLN = 96;
+  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
+  RCC_OscInitStruct.PLL.PLLQ = 4;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -225,7 +238,7 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_1) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_3) != HAL_OK)
   {
     Error_Handler();
   }
@@ -340,7 +353,7 @@ static void MX_SPI1_Init(void)
   SPI_InitStruct.ClockPolarity = LL_SPI_POLARITY_LOW;
   SPI_InitStruct.ClockPhase = LL_SPI_PHASE_2EDGE;
   SPI_InitStruct.NSS = LL_SPI_NSS_SOFT;
-  SPI_InitStruct.BaudRate = LL_SPI_BAUDRATEPRESCALER_DIV16;
+  SPI_InitStruct.BaudRate = LL_SPI_BAUDRATEPRESCALER_DIV2;
   SPI_InitStruct.BitOrder = LL_SPI_MSB_FIRST;
   SPI_InitStruct.CRCCalculation = LL_SPI_CRCCALCULATION_DISABLE;
   SPI_InitStruct.CRCPoly = 10;
@@ -382,7 +395,6 @@ static void MX_TIM1_Init(void)
 
   /* USER CODE END TIM1_Init 0 */
 
-  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
   TIM_MasterConfigTypeDef sMasterConfig = {0};
   TIM_OC_InitTypeDef sConfigOC = {0};
   TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig = {0};
@@ -391,22 +403,13 @@ static void MX_TIM1_Init(void)
 
   /* USER CODE END TIM1_Init 1 */
   htim1.Instance = TIM1;
-  htim1.Init.Prescaler = 4-1;
+  htim1.Init.Prescaler = 0;
   htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim1.Init.Period = 20-1;
+  htim1.Init.Period = 0;
   htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim1.Init.RepetitionCounter = 0;
   htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_Base_Init(&htim1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-  if (HAL_TIM_ConfigClockSource(&htim1, &sClockSourceConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  if (HAL_TIM_OC_Init(&htim1) != HAL_OK)
+  if (HAL_TIM_PWM_Init(&htim1) != HAL_OK)
   {
     Error_Handler();
   }
@@ -416,14 +419,14 @@ static void MX_TIM1_Init(void)
   {
     Error_Handler();
   }
-  sConfigOC.OCMode = TIM_OCMODE_TIMING;
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
   sConfigOC.Pulse = 0;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
   sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
   sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
-  if (HAL_TIM_OC_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
   {
     Error_Handler();
   }
@@ -491,12 +494,12 @@ static void MX_DMA_Init(void)
   /* DMA2_Stream0_IRQn interrupt configuration */
   NVIC_SetPriority(DMA2_Stream0_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(),1, 1));
   NVIC_EnableIRQ(DMA2_Stream0_IRQn);
+  /* DMA2_Stream1_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA2_Stream1_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA2_Stream1_IRQn);
   /* DMA2_Stream2_IRQn interrupt configuration */
   NVIC_SetPriority(DMA2_Stream2_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(),1, 1));
   NVIC_EnableIRQ(DMA2_Stream2_IRQn);
-  /* DMA2_Stream5_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA2_Stream5_IRQn, 2, 0);
-  HAL_NVIC_EnableIRQ(DMA2_Stream5_IRQn);
 
 }
 
@@ -549,59 +552,60 @@ static void MX_GPIO_Init(void)
 /* USER CODE BEGIN 4 */
 void SPI_TransmitReceive_DMA(uint16_t* transferData, uint16_t* receiveData, uint16_t size)
 {
-	for (uint16_t i=0; i<size; i++)
-	{
-		LL_DMA_DisableStream(DMA2, LL_DMA_STREAM_0);
-		LL_DMA_DisableStream(DMA2, LL_DMA_STREAM_2);
-		LL_DMA_ConfigAddresses(DMA2, LL_DMA_STREAM_0, LL_SPI_DMA_GetRegAddr(SPI1), (uint32_t)(receiveData+i), LL_DMA_GetDataTransferDirection(DMA2, LL_DMA_STREAM_0));
-		LL_DMA_ConfigAddresses(DMA2, LL_DMA_STREAM_2, (uint32_t)(transferData+i), LL_SPI_DMA_GetRegAddr(SPI1), LL_DMA_GetDataTransferDirection(DMA2, LL_DMA_STREAM_2));
+  for (uint16_t i=0; i<size; i++)
+  {
+    LL_DMA_DisableStream(DMA2, LL_DMA_STREAM_0);
+    LL_DMA_DisableStream(DMA2, LL_DMA_STREAM_2);
+    LL_DMA_ConfigAddresses(DMA2, LL_DMA_STREAM_0, LL_SPI_DMA_GetRegAddr(SPI1), (uint32_t)(receiveData+i), LL_DMA_GetDataTransferDirection(DMA2, LL_DMA_STREAM_0));
+    LL_DMA_ConfigAddresses(DMA2, LL_DMA_STREAM_2, (uint32_t)(transferData+i), LL_SPI_DMA_GetRegAddr(SPI1), LL_DMA_GetDataTransferDirection(DMA2, LL_DMA_STREAM_2));
 
-		HAL_GPIO_WritePin(  AS5047_CS_GPIO_Port,   AS5047_CS_Pin, GPIO_PIN_RESET); spiTxFinished = 0;spiRxFinished = 0;
-		LL_DMA_EnableStream(DMA2, LL_DMA_STREAM_0);
-		LL_DMA_EnableStream(DMA2, LL_DMA_STREAM_2);
-	}
+    HAL_GPIO_WritePin(  AS5047_CS_GPIO_Port,   AS5047_CS_Pin, GPIO_PIN_RESET); spiTxFinished = 0;spiRxFinished = 0;
+    LL_DMA_EnableStream(DMA2, LL_DMA_STREAM_0);
+    LL_DMA_EnableStream(DMA2, LL_DMA_STREAM_2);
+  }
 }
 
 void SPI_Transfer_DMA(uint16_t* transferData, uint16_t size)
 {
-	for (uint16_t i=0; i<size; i++)
-	{
-		LL_DMA_DisableStream(DMA2, LL_DMA_STREAM_2);
-		LL_DMA_ConfigAddresses(DMA2, LL_DMA_STREAM_2, (uint32_t)(transferData+i), LL_SPI_DMA_GetRegAddr(SPI1), LL_DMA_GetDataTransferDirection(DMA2, LL_DMA_STREAM_2));
+  for (uint16_t i=0; i<size; i++)
+  {
+    LL_DMA_DisableStream(DMA2, LL_DMA_STREAM_2);
+    LL_DMA_ConfigAddresses(DMA2, LL_DMA_STREAM_2, (uint32_t)(transferData+i), LL_SPI_DMA_GetRegAddr(SPI1), LL_DMA_GetDataTransferDirection(DMA2, LL_DMA_STREAM_2));
 
-		HAL_GPIO_WritePin(  AS5047_CS_GPIO_Port,   AS5047_CS_Pin, GPIO_PIN_RESET); spiTxFinished = 0;
-		LL_DMA_EnableStream(DMA2, LL_DMA_STREAM_2);
-	}
+    HAL_GPIO_WritePin(  AS5047_CS_GPIO_Port,   AS5047_CS_Pin, GPIO_PIN_RESET); spiTxFinished = 0;
+    LL_DMA_EnableStream(DMA2, LL_DMA_STREAM_2);
+  }
 }
 
 void SPI_Receive_DMA(uint16_t* receiveData, uint16_t size)
 {
-	for (uint16_t i=0; i<size; i++)
-	{
-		LL_DMA_DisableStream(DMA2, LL_DMA_STREAM_0);
-		LL_DMA_ConfigAddresses(DMA2, LL_DMA_STREAM_0, LL_SPI_DMA_GetRegAddr(SPI1), (uint32_t)(receiveData+i), LL_DMA_GetDataTransferDirection(DMA2, LL_DMA_STREAM_0));
+  for (uint16_t i=0; i<size; i++)
+  {
+    LL_DMA_DisableStream(DMA2, LL_DMA_STREAM_0);
+    LL_DMA_ConfigAddresses(DMA2, LL_DMA_STREAM_0, LL_SPI_DMA_GetRegAddr(SPI1), (uint32_t)(receiveData+i), LL_DMA_GetDataTransferDirection(DMA2, LL_DMA_STREAM_0));
 
-		HAL_GPIO_WritePin(  AS5047_CS_GPIO_Port,   AS5047_CS_Pin, GPIO_PIN_RESET); spiRxFinished = 0;
-		LL_DMA_EnableStream(DMA2, LL_DMA_STREAM_0);
-	}
+    HAL_GPIO_WritePin(  AS5047_CS_GPIO_Port,   AS5047_CS_Pin, GPIO_PIN_RESET); spiRxFinished = 0;
+    LL_DMA_EnableStream(DMA2, LL_DMA_STREAM_0);
+  }
 }
 
 void DMA2_Stream0_TransferComplete(void)
 {
     // TX Done .. Do Something ...
-	LL_DMA_ClearFlag_TC0(DMA2);
-	if (spiTxFinished)
-	  HAL_GPIO_WritePin(  AS5047_CS_GPIO_Port,   AS5047_CS_Pin, GPIO_PIN_SET);
-	spiRxFinished = 1;
+  LL_DMA_ClearFlag_TC0(DMA2);
+  if (spiTxFinished)
+    HAL_GPIO_WritePin(  AS5047_CS_GPIO_Port,   AS5047_CS_Pin, GPIO_PIN_SET);
+  spiRxFinished = 1;
 }
 void DMA2_Stream2_TransferComplete(void)
 {
     // RX Done .. Do Something ...
-	LL_DMA_ClearFlag_TC2(DMA2);
-	if (spiRxFinished)
-	  HAL_GPIO_WritePin(  AS5047_CS_GPIO_Port,   AS5047_CS_Pin, GPIO_PIN_SET);
-	spiTxFinished = 1;
+  LL_DMA_ClearFlag_TC2(DMA2);
+  if (spiRxFinished)
+    HAL_GPIO_WritePin(  AS5047_CS_GPIO_Port,   AS5047_CS_Pin, GPIO_PIN_SET);
+  spiTxFinished = 1;
 }
+
 /* USER CODE END 4 */
 
 /**
