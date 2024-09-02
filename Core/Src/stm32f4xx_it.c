@@ -200,6 +200,43 @@ void SysTick_Handler(void)
 /******************************************************************************/
 
 /**
+  * @brief This function handles ADC1 global interrupt.
+  */
+void ADC_IRQHandler(void)
+{
+  /* USER CODE BEGIN ADC_IRQn 0 */
+ /* Check whether ADC group regular overrun caused the ADC interruption */
+  if(LL_ADC_IsActiveFlag_OVR(ADC1) != 0)
+  {
+    /* Clear flag ADC group regular overrun */
+    LL_ADC_ClearFlag_OVR(ADC1);
+    
+    /* Call interruption treatment function */
+    AdcGrpRegularOverrunError_Callback();
+  }
+  /* Check whether ADC group regular end of sequence conversions caused       */
+  /* the ADC interruption.                                                    */
+  /* Note: On this STM32 series, ADC group regular end of conversion           */
+  /*       must be selected among end of unitary conversion                   */
+  /*       or end of sequence conversions.                                    */
+  /*       Refer to function "LL_ADC_REG_SetFlagEndOfConversion()".           */
+  else /* if(LL_ADC_IsActiveFlag_EOCS(ADC1) != 0) */
+  {
+    /* Clear flag ADC group regular end of sequence conversions */
+    LL_ADC_ClearFlag_EOCS(ADC1);
+    
+    /* Call interruption treatment function */
+    AdcGrpRegularSequenceConvComplete_Callback();
+  }
+
+  /* USER CODE END ADC_IRQn 0 */
+
+  /* USER CODE BEGIN ADC_IRQn 1 */
+
+  /* USER CODE END ADC_IRQn 1 */
+}
+
+/**
   * @brief This function handles TIM1 trigger and commutation interrupts and TIM11 global interrupt.
   */
 void TIM1_TRG_COM_TIM11_IRQHandler(void)
@@ -268,6 +305,37 @@ void DMA2_Stream2_IRQHandler(void)
   /* USER CODE BEGIN DMA2_Stream2_IRQn 1 */
 
   /* USER CODE END DMA2_Stream2_IRQn 1 */
+}
+
+/**
+  * @brief This function handles DMA2 stream4 global interrupt.
+  */
+void DMA2_Stream4_IRQHandler(void)
+{
+  /* USER CODE BEGIN DMA2_Stream4_IRQn 0 */
+  /* Check whether DMA transfer complete caused the DMA interruption */
+  if(LL_DMA_IsActiveFlag_TC4(DMA2) == 1)
+  {
+    /*  Clear Stream  transfer complete flag*/
+    LL_DMA_ClearFlag_TC4(DMA2);
+    /* Call interruption treatment function */
+    AdcDmaTransferComplete_Callback();
+  }
+  
+  /* Check whether DMA transfer error caused the DMA interruption */
+  if(LL_DMA_IsActiveFlag_TE4(DMA2) == 1)
+  {
+    /* Clear flag DMA transfer error */
+    LL_DMA_ClearFlag_TE4(DMA2);
+    
+    /* Call interruption treatment function */
+    AdcDmaTransferError_Callback();
+  }
+  /* USER CODE END DMA2_Stream4_IRQn 0 */
+
+  /* USER CODE BEGIN DMA2_Stream4_IRQn 1 */
+
+  /* USER CODE END DMA2_Stream4_IRQn 1 */
 }
 
 /* USER CODE BEGIN 1 */

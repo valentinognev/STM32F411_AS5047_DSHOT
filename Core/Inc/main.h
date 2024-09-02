@@ -28,6 +28,8 @@ extern "C" {
 
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f4xx_hal.h"
+
+#include "stm32f4xx_ll_adc.h"
 #include "stm32f4xx_ll_spi.h"
 #include "stm32f4xx_ll_bus.h"
 #include "stm32f4xx_ll_cortex.h"
@@ -60,8 +62,6 @@ extern "C" {
 
 /* USER CODE END EM */
 
-void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
-
 /* Exported functions prototypes ---------------------------------------------*/
 void Error_Handler(void);
 
@@ -80,6 +80,8 @@ void DMA2_Stream2_TransferComplete(void);
 #define led_GPIO_Port GPIOC
 #define btn_Pin GPIO_PIN_0
 #define btn_GPIO_Port GPIOA
+#define PHASE_Pin GPIO_PIN_1
+#define PHASE_GPIO_Port GPIOA
 #define AS5047_CS_Pin GPIO_PIN_4
 #define AS5047_CS_GPIO_Port GPIOA
 #define AS5047_SCK_Pin GPIO_PIN_5
@@ -88,11 +90,19 @@ void DMA2_Stream2_TransferComplete(void);
 #define AS5047_MISO_GPIO_Port GPIOA
 #define AS5047_MOSI_Pin GPIO_PIN_7
 #define AS5047_MOSI_GPIO_Port GPIOA
+#define AVGSPEED_Pin GPIO_PIN_0
+#define AVGSPEED_GPIO_Port GPIOB
+#define AMPSPEED_Pin GPIO_PIN_1
+#define AMPSPEED_GPIO_Port GPIOB
 #define DSHOT_Pin GPIO_PIN_8
 #define DSHOT_GPIO_Port GPIOA
 
 /* USER CODE BEGIN Private defines */
 
+#define INTERNAL_TEMPSENSOR_AVGSLOPE   ((int32_t) 2500)        /* Internal temperature sensor, parameter Avg_Slope (unit: uV/DegCelsius). Refer to device datasheet for min/typ/max values. */
+#define INTERNAL_TEMPSENSOR_V25        ((int32_t)  760)        /* Internal temperature sensor, parameter V25 (unit: mV). Refer to device datasheet for min/typ/max values. */
+#define INTERNAL_TEMPSENSOR_V25_TEMP   ((int32_t)   25)
+#define INTERNAL_TEMPSENSOR_V25_VREF   ((int32_t) 3300)
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus
