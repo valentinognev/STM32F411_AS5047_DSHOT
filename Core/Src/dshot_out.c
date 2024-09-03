@@ -8,7 +8,7 @@
  *
  */
 
-#include "dshot.h"
+#include "dshot_out.h"
 
 extern TIM_HandleTypeDef htim1;
 

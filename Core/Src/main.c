@@ -32,7 +32,7 @@
 
 #include "AS5047D.h"
 #include "debug_scope.h"
-#include "dshot.h"
+#include "dshot_out.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
