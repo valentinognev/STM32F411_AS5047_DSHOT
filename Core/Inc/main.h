@@ -31,6 +31,7 @@ extern "C" {
 
 #include "stm32f4xx_ll_adc.h"
 #include "stm32f4xx_ll_spi.h"
+#include "stm32f4xx_ll_tim.h"
 #include "stm32f4xx_ll_bus.h"
 #include "stm32f4xx_ll_cortex.h"
 #include "stm32f4xx_ll_rcc.h"
@@ -72,7 +73,7 @@ void SPI_Receive_DMA(uint16_t* receiveData, uint16_t size);
 
 void DMA2_Stream0_TransferComplete(void);
 void DMA2_Stream2_TransferComplete(void);
-
+void DelayUS(uint32_t us) ;
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/

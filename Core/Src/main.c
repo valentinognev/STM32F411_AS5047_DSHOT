@@ -46,6 +46,8 @@
 #define TROTTLE_MIN 48      // trotle min
 
 #define DSHOT_FRAME_SIZE 18
+#define min(a,b) ((a) < (b) ? (a) : (b))
+#define max(a,b) ((a) > (b) ? (a) : (b))
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -65,18 +67,28 @@
 
 /* USER CODE BEGIN PV */
 uint16_t my_motor_value[4] = {2345, 0, 0, 0};
+const uint16_t sinMAX = 560;
+const int16_t sinedata[360] = {0,10,20,29,39,49,59,68,78,88,97,107,116,126,135,145,154,164,173,182,192,201,210,219,228,
+237,245,254,263,271,280,288,297,305,313,321,329,337,345,352,360,367,375,382,389,396,403,410,416,423,429,435,441,447,453,
+459,464,470,475,480,485,490,494,499,503,508,512,515,519,523,526,529,533,536,538,541,543,546,548,550,551,553,555,556,557,
+558,559,559,560,560,560,560,560,559,559,558,557,556,555,553,551,550,548,546,543,541,538,536,533,529,526,523,519,515,512,
+508,503,499,494,490,485,480,475,470,464,459,453,447,441,435,429,423,416,410,403,396,389,382,375,367,360,352,345,337,329,
+321,313,305,297,288,280,271,263,254,245,237,228,219,210,201,192,182,173,164,154,145,135,126,116,107,97,88,78,68,59,49,39,
+29,20,10,0,-10,-20,-29,-39,-49,-59,-68,-78,-88,-97,-107,-116,-126,-135,-145,-154,-164,-173,-182,-192,-201,-210,-219,-228,
+-237,-245,-254,-263,-271,-280,-288,-297,-305,-313,-321,-329,-337,-345,-352,-360,-367,-375,-382,-389,-396,-403,-410,-416,
+-423,-429,-435,-441,-447,-453,-459,-464,-470,-475,-480,-485,-490,-494,-499,-503,-508,-512,-515,-519,-523,-526,-529,-533,
+-536,-538,-541,-543,-546,-548,-550,-551,-553,-555,-556,-557,-558,-559,-559,-560,-560,-560,-560,-560,-559,-559,-558,-557,
+-556,-555,-553,-551,-550,-548,-546,-543,-541,-538,-536,-533,-529,-526,-523,-519,-515,-512,-508,-503,-499,-494,-490,-485,
+-480,-475,-470,-464,-459,-453,-447,-441,-435,-429,-423,-416,-410,-403,-396,-389,-382,-375,-367,-360,-352,-345,-337,-329,
+-321,-313,-305,-297,-288,-280,-271,-263,-254,-245,-237,-228,-219,-210,-201,-192,-182,-173,-164,-154,-145,-135,-126,-116,
+-107,-97,-88,-78,-68,-59,-49,-39,-29,-20,-10};
 
 DebugCommand debugCommand = 0;
-volatile uint8_t timTrig = 0;
 DebugScope_Handle_t debugData =
   {
         .sz = DEBUGSCOPESIZE,
         .curCh = 1,
-        .i1 = 0,
-        .i2 = 0,
-        .i3 = 0,
-        .i4 = 0,
-        .i5 = 0,
+        .id = 0,
         .startWriteFlag = false
     };
 int32_t encoderAngle = 0;
@@ -114,7 +126,27 @@ uint16_t VoltageToPhase(const uint16_t voltage);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+void DelayUS(uint32_t us) 
+{
+    uint32_t duration = us * 16;
+    LL_TIM_SetCounter(TIM5, 0);
+    LL_TIM_EnableCounter(TIM5);
+    uint32_t start = TIM5->CNT;
+    while (TIM5->CNT - start < duration);
+}
 
+int16_t sineData(int16_t angle)
+{
+    while (angle < 0)
+    {
+        angle = 360 + angle;
+    }
+    while (angle >= 360)
+    {
+        angle = angle - 360;
+    }
+    return sinedata[angle];
+}
 /* USER CODE END 0 */
 
 /**
@@ -152,6 +184,7 @@ int main(void)
   MX_USART2_UART_Init();
   MX_SPI1_Init();
   MX_ADC1_Init();
+  MX_TIM5_Init();
   /* USER CODE BEGIN 2 */
   
    /* Initiaize AS5047D */
@@ -191,30 +224,26 @@ int main(void)
   uint16_t avgSpeed = 0;
   uint16_t ampSpeed = 0;
   uint16_t phase = 0;
+  uint32_t spiAngle32 = 0;
+  uint16_t totalSpeed = 0;
+  int16_t sinAnglepPhase = 0;
+  int16_t delta = 0;
+  uint8_t debugRes = 0;
+  float data[DEBUGSCOPENUMOFCH] = {0.0f, 0.0f};
+  DebugScopeStartWrite(&debugData);
   while (1)
   {
-    // while (!timTrig) ;
-
-    errorFlag[15] = AS5047D_Get_True_Angle_Value(&spiAngle);
-    if (errorFlag[15] != 0)
+    errorFlag[7] = AS5047D_Read(  AS5047_CS_GPIO_Port,   AS5047_CS_Pin, AS5047D_ANGLECOM, &ANGLECOM);
+    spiAngle32 = ANGLECOM * 360 / 16384;
+    // errorFlag[15] = AS5047D_Get_True_Angle_Value(&spiAngle);
+    if (errorFlag[7] != 0)
     {
       errorFlag[16] = AS5047D_Read(AS5047_CS_GPIO_Port, AS5047_CS_Pin, AS5047D_ERRFL, &ERRFL);
-      //errorFlag++;
+      continue;
     }
-    else
-    {
-      DebugScopeInsertData(&debugData, 1, encoderAngle);
-      DebugScopeInsertData(&debugData, 2, spiAngle);
-    }
-    timTrig = 0;
 
-    
-	  //HAL_Delay(1);
     read_ADC(&PHASE_Voltage, &AVGSPEED_Voltage, &AMPSPEED_Voltage);
     avgSpeed = VoltageToAVGSpeed(AVGSPEED_Voltage);
-    ampSpeed = VoltageToAmpSpeed(AMPSPEED_Voltage, avgSpeed);
-    phase = VoltageToPhase(PHASE_Voltage);
-
     if (avgSpeed>1950)
     {
       avgSpeed = 2000;
@@ -224,7 +253,27 @@ int main(void)
       avgSpeed = 0;
     }
 
-    dshot_write(&avgSpeed);
+    ampSpeed = VoltageToAmpSpeed(AMPSPEED_Voltage, avgSpeed*3/4);
+    phase = VoltageToPhase(PHASE_Voltage);
+
+    sinAnglepPhase = sineData(spiAngle32 + phase);
+    delta = (int32_t)ampSpeed*sinAnglepPhase/sinMAX;
+    totalSpeed = avgSpeed + delta;
+
+    totalSpeed = min(totalSpeed, 2000);
+    totalSpeed = max(totalSpeed, 0);
+
+    dshot_write(&totalSpeed);
+
+    data[0] = (float)spiAngle32;
+    data[1] = (float)totalSpeed;
+    data[1] = (float)delta;
+    debugRes = DebugScopeInsertData(&debugData, data);
+    if (debugRes == NO_MORE_PLACE_TO_WRITE)
+    {
+      DebugScopeStartWrite(&debugData);
+    }
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

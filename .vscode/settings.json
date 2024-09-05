@@ -25,6 +25,8 @@
         "i2cdevbc.h": "c",
         "freertosconfig.h": "c",
         "as5047d.h": "c",
-        "stm32f4xx_hal.h": "c"
+        "stm32f4xx_hal.h": "c",
+        "compare": "c",
+        "stm32f4xx_ll_tim.h": "c"
     }
 }

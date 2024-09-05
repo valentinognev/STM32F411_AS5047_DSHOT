@@ -53,7 +53,7 @@ extern "C" {
   */
 #define DEBUG_SCOPE 1
 #define DEBUGSCOPESIZE 1024
-#define DEBUGSCOPENUMOFCH 3
+#define DEBUGSCOPENUMOFCH 2
 
 typedef struct
 {
@@ -82,7 +82,8 @@ typedef struct
 {
   const int16_t sz;
 	int8_t curCh;
-	int16_t i1, i2, i3, i4, i5;
+	int16_t id;
+    uint32_t timeus[DEBUGSCOPESIZE];
     float Ch1[DEBUGSCOPESIZE];
     float Ch2[DEBUGSCOPESIZE];
     float Ch3[DEBUGSCOPESIZE];
@@ -92,7 +93,7 @@ typedef struct
 } DebugScope_Handle_t;
 
 int64_t getTickMSCounter();
-DebugWriteState DebugScopeInsertData(DebugScope_Handle_t *pHandle, const int8_t chid, const float data);
+DebugWriteState DebugScopeInsertData(DebugScope_Handle_t *pHandle, const float data[DEBUGSCOPENUMOFCH]);
 void DebugScopeStartWrite(DebugScope_Handle_t *pHandle);
 
 #ifdef __cplusplus

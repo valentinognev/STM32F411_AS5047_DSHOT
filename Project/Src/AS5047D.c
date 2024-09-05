@@ -79,7 +79,7 @@ uint8_t AS5047D_Read(GPIO_TypeDef* CS_GPIO_Port, uint16_t CS_GPIO_Pin, uint16_t 
 	SPI_TransmitReceive_DMA(&address, &resData, 1);
 	while (!spiTxFinished || !spiRxFinished)
 	{
-		HAL_Delay(1);
+		//DelayUS(10);
 	}
 
 	uint16_t nop = 0;
@@ -174,8 +174,8 @@ uint8_t AS5047D_Get_True_Angle_Value(float* angle)
 {
 	uint16_t uangle = 0;
 	uint8_t errorFlag = AS5047D_Get_ANGLEUNC_Value(&uangle);
-	if (errorFlag == 0)
-		*angle = ((float)uangle * 360.0f / 16383.0f);
+	//if (errorFlag == 0)
+	*angle = ((float)uangle * 360.0f / 16383.0f);
 	return errorFlag;
 	//return((float)AS5047D_Get_ANGLECOM_Value() * 360.0f / 16383.0f);
 }

@@ -18,71 +18,50 @@
   ******************************************************************************
   */
 //cstat -MISRAC2012-Rule-21.1
-#include "debug_scope.h" //cstat !MISRAC2012-Rule-21.1
+#include "debug_scope.h" 
+#include "main.h" 
 
 int64_t TickMSCounter = 0;
 
 int64_t getTickMSCounter()
 {
-	return TickMSCounter;
+    return TickMSCounter;
 }
 
-DebugWriteState DebugScopeInsertData(DebugScope_Handle_t *pHandle, const int8_t chid, const float data)
+DebugWriteState DebugScopeInsertData(DebugScope_Handle_t *pHandle, const float data[DEBUGSCOPENUMOFCH])
 {
-	if (!pHandle->startWriteFlag)
-		return START_FLAG_IS_OFF ;
+    if (!pHandle->startWriteFlag)
+        return START_FLAG_IS_OFF ;
 
-	if (chid < 1 || DEBUGSCOPENUMOFCH < chid) return CHID_IS_OUT_OF_BOUNDS;
-	if (chid == 1)
-	{
-		if (pHandle->i1 == DEBUGSCOPESIZE)
-		{
-			pHandle->startWriteFlag = false;
-			return NO_MORE_PLACE_TO_WRITE; // pHandle->i1 = 0;
-		}
-		pHandle->Ch1[pHandle->i1++]=data;
-	}
-	else if (chid == 2)
-	{
-		if (pHandle->i2 == DEBUGSCOPESIZE)
-		{
-			pHandle->startWriteFlag = false;
-			return NO_MORE_PLACE_TO_WRITE; // pHandle->i2 = 0;
-		}
-		pHandle->Ch2[pHandle->i2++] = data;
-	}
-	else if (chid == 3)
-	{
-		if (pHandle->i3 == DEBUGSCOPESIZE)
-		{
-			pHandle->startWriteFlag = false;
-			return NO_MORE_PLACE_TO_WRITE; // pHandle->i3 = 0;
-		}
-		pHandle->Ch3[pHandle->i3++] = data;
-	}
-	else if (chid == 4)
-	{
-		if (pHandle->i4 == DEBUGSCOPESIZE)
-		{
-			pHandle->startWriteFlag = false;
-			return NO_MORE_PLACE_TO_WRITE; // pHandle->i4 = 0;
-		}
-		pHandle->Ch4[pHandle->i4++] = data;
-	}
-	else if (chid == 5)
-	{
-		if (pHandle->i5 == DEBUGSCOPESIZE)
-		{
-			pHandle->startWriteFlag = false;
-			return NO_MORE_PLACE_TO_WRITE; // pHandle->i5 = 0;
-		}
-		pHandle->Ch5[pHandle->i5++] = data;
-	}
+    if (pHandle->id == DEBUGSCOPESIZE)
+    {
+        pHandle->startWriteFlag = false;
+        return NO_MORE_PLACE_TO_WRITE; 
+    }
+	pHandle->timeus[pHandle->id] = TIM5->CNT;
+#if DEBUGSCOPENUMOFCH > 0
+	pHandle->Ch1[pHandle->id] = data[0];
+#if DEBUGSCOPENUMOFCH > 1
+	pHandle->Ch2[pHandle->id] = data[1];
+#if DEBUGSCOPENUMOFCH > 2
+	pHandle->Ch3[pHandle->id] = data[2];
+#if DEBUGSCOPENUMOFCH > 3
+	pHandle->Ch4[pHandle->id] = data[3];
+#if DEBUGSCOPENUMOFCH > 4
+	pHandle->Ch5[pHandle->id] = data[4];
+#endif
+#endif
+#endif
+#endif
+#endif
+	pHandle->id++;
 	return NO_ERROR;
 }
 
 void DebugScopeStartWrite(DebugScope_Handle_t *pHandle)
 {
-	pHandle->startWriteFlag = true;
-	pHandle->i1 = pHandle->i2 = pHandle->i3 = pHandle->i4 = pHandle->i5 = 0;
+    pHandle->startWriteFlag = true;
+    pHandle->id = 0;
+    LL_TIM_SetCounter(TIM5, 0);
+    LL_TIM_EnableCounter(TIM5);
 }
