@@ -53,7 +53,7 @@ extern "C" {
   */
 #define DEBUG_SCOPE 1
 #define DEBUGSCOPESIZE 1024
-#define DEBUGSCOPENUMOFCH 2
+#define DEBUGSCOPENUMOFCH 3
 
 typedef struct
 {

@@ -67,8 +67,8 @@
 
 /* USER CODE BEGIN PV */
 uint16_t my_motor_value[4] = {2345, 0, 0, 0};
-const uint16_t sinMAX = 560;
-const int16_t sinedata[360] = {0,10,20,29,39,49,59,68,78,88,97,107,116,126,135,145,154,164,173,182,192,201,210,219,228,
+#define sinMAX (560)
+const int32_t sinedata[360] = {0,10,20,29,39,49,59,68,78,88,97,107,116,126,135,145,154,164,173,182,192,201,210,219,228,
 237,245,254,263,271,280,288,297,305,313,321,329,337,345,352,360,367,375,382,389,396,403,410,416,423,429,435,441,447,453,
 459,464,470,475,480,485,490,494,499,503,508,512,515,519,523,526,529,533,536,538,541,543,546,548,550,551,553,555,556,557,
 558,559,559,560,560,560,560,560,559,559,558,557,556,555,553,551,550,548,546,543,541,538,536,533,529,526,523,519,515,512,
@@ -135,7 +135,7 @@ void DelayUS(uint32_t us)
     while (TIM5->CNT - start < duration);
 }
 
-int16_t sineData(int16_t angle)
+int32_t sineData(int32_t angle)
 {
     while (angle < 0)
     {
@@ -221,13 +221,13 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   Activate_ADC();
 
-  uint16_t avgSpeed = 0;
-  uint16_t ampSpeed = 0;
-  uint16_t phase = 0;
-  uint32_t spiAngle32 = 0;
+  int32_t avgSpeed = 0;
+  int32_t ampSpeed = 0;
+  int32_t phase = 0;
+  int32_t spiAngle32 = 0;
   uint16_t totalSpeed = 0;
-  int16_t sinAnglepPhase = 0;
-  int16_t delta = 0;
+  int32_t sinAnglepPhase = 0;
+  int32_t delta = 0;
   uint8_t debugRes = 0;
   float data[DEBUGSCOPENUMOFCH] = {0.0f, 0.0f};
   DebugScopeStartWrite(&debugData);
@@ -257,7 +257,7 @@ int main(void)
     phase = VoltageToPhase(PHASE_Voltage);
 
     sinAnglepPhase = sineData(spiAngle32 + phase);
-    delta = (int32_t)ampSpeed*sinAnglepPhase/sinMAX;
+    delta = ampSpeed*sinAnglepPhase/sinMAX;
     totalSpeed = avgSpeed + delta;
 
     totalSpeed = min(totalSpeed, 2000);
@@ -267,7 +267,7 @@ int main(void)
 
     data[0] = (float)spiAngle32;
     data[1] = (float)totalSpeed;
-    data[1] = (float)delta;
+    data[2] = (float)delta;
     debugRes = DebugScopeInsertData(&debugData, data);
     if (debugRes == NO_MORE_PLACE_TO_WRITE)
     {
